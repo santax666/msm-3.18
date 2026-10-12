@@ -1,84 +1,162 @@
-/* Jason Q787: отличия платы от generic msm8937-pmi8937-qrd-sku2 */
-/ {
-	model = "Qualcomm Technologies, Inc. MSM8937-PMI8937 QRD SKU2 DVT1";
-	qcom,board-id = <0xb 0x0>;
+/*
+ * Jason Q787: отличия платы от generic msm8937-pmi8937-qrd-sku2
+ * Включается после #include "msm8937-pmi8937-qrd-sku2.dtsi"
+ */
 
-	soc {
-		i2c@78b6000 { /* i2c_2 — тачскрин */
-			goodix@5d {
-				compatible = "goodix,gt1x";
-				reg = <0x5d>;
-				interrupt-parent = <&tlmm_pinmux>;
-				interrupts = <65 0x2008>;
-				goodix,rst-gpio = <&tlmm_pinmux 64 0x0>;
-				goodix,irq-gpio = <&tlmm_pinmux 65 0x2002>;
-				vdd-supply = <&pm8937_l22>;
-				vcc_i2c-supply = <&pm8937_l6>;
-				pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
-				pinctrl-0 = <&ts_int_active &ts_reset_active>;
-				pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-				pinctrl-2 = <&ts_release>;
-				goodix,product-id = "5688";
-				goodix,name = "GT5688";
-				goodix,fw-vkey-support;
+/* ---------- pinctrl: merge в существующие группы, без новых меток ---------- */
+&tlmm_pinmux {
+	tlmm_gpio_key {
+		/* в QRD-базе только vol_up (gpio91); добавляем ptt/sos */
+		gpio_key_active {
+			mux {
+				pins = "gpio91", "gpio127", "gpio128";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio91", "gpio127", "gpio128";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 		};
 
-		gen-vkeys {
-			compatible = "qcom,gen-vkeys";
-			label = "goodix_ts";
-			qcom,disp-maxx = <1080>;
-			qcom,disp-maxy = <1920>;
-			qcom,panel-maxx = <1080>;
-			qcom,panel-maxy = <2098>;
-			qcom,key-codes = <139 158 172>;
-			qcom,y-offset = <0x0>;
-		};
-
-		pwv,gpio-interface {
-			compatible = "pwv,gpio-interface";
-
-			rfid-power {
-				pwv,lable = "rfid-power";
-				gpios = <&tlmm_pinmux 59 0x0>;
+		gpio_key_suspend {
+			mux {
+				pins = "gpio91", "gpio127", "gpio128";
+				function = "gpio";
 			};
-		};
-
-		gpio_keys {
-			compatible = "gpio-keys";
-			input-name = "gpio-keys";
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&gpio_key_active>;
-			pinctrl-1 = <&gpio_key_suspend>;
-
-			ptt_key {
-				label = "ptt_key";
-				gpios = <&tlmm_pinmux 127 0x1>;
-				linux,input-type = <1>;
-				linux,code = <476>;
-				gpio-key,wakeup;
-				debounce-interval = <15>;
-			};
-
-			sos_key {
-				label = "sos_key";
-				gpios = <&tlmm_pinmux 128 0x1>;
-				linux,input-type = <1>;
-				linux,code = <477>;
-				gpio-key,wakeup;
-				debounce-interval = <15>;
-			};
-
-			vol_up {
-				label = "volume_up";
-				gpios = <&tlmm_pinmux 91 0x1>;
-				linux,input-type = <1>;
-				linux,code = <115>;
-				gpio-key,wakeup;
-				debounce-interval = <15>;
+			config {
+				pins = "gpio91", "gpio127", "gpio128";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 		};
 	};
 
-	/* Узлы pinctrl — в отдельный блок, т.к. в QRD-дереве нет ptt/sos/rfid */
+	/* UART5 на gpio16/17 — peripheral-порт ODM (в стоке serial@7aef000, status ok) */
+	blsp2_uart1_active {
+		mux {
+			pins = "gpio16", "gpio17";
+			function = "blsp_uart5";
+		};
+		config {
+			pins = "gpio16", "gpio17";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	blsp2_uart1_sleep {
+		mux {
+			pins = "gpio16", "gpio17";
+			function = "blsp_uart5";
+		};
+		config {
+			pins = "gpio16", "gpio17";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	/* pinctrl тача (pmx_ts_*) в базе уже правильный: gpio64 reset / gpio65 irq.
+	   NFC-группы pmx_rd_nfc_int / pmx_nfc_reset в базе тоже есть. Не дублируем. */
+};
+
+/* ---------- устройства ---------- */
+&soc {
+	i2c@78b7000 {
+		/* чужой тач из QRD-базы (ft5436) — убрать, иначе конфликт на шине */
+		/delete-node/ focaltech@38;
+
+		goodix@5d {
+			compatible = "goodix,gt1x";
+			reg = <0x5d>;
+			interrupt-parent = <&tlmm_pinmux>;
+			interrupts = <65 0x2008>;
+			goodix,rst-gpio = <&tlmm_pinmux 64 0x0>;
+			goodix,irq-gpio = <&tlmm_pinmux 65 0x2002>;
+			vdd-supply = <&PM_TOUCH_VDD>;       /* ← см. примечание про регуляторы */
+			vcc_i2c-supply = <&PM_TOUCH_VCC>;   /* ← см. примечание про регуляторы */
+			pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+			goodix,product-id = "5688";
+			goodix,name = "GT5688";
+			goodix,fw-vkey-support;
+		};
+	};
+
+	i2c@7af5000 {
+		/* если в QRD-базе на этой шине есть свой NFC — раскомментируйте: */
+		/* /delete-node/ nq-nci@28; */
+
+		pn548@28 {
+			compatible = "NXP,pn548";
+			reg = <0x28>;
+			vdd-supply = <&PM_TOUCH_VDD>;
+			vcc_i2c-supply = <&PM_TOUCH_VCC>;
+			interrupt-parent = <&tlmm_pinmux>;
+			interrupts = <126 0x0>;
+			irq-gpio = <&tlmm_pinmux 126 0x0>;
+			ven-gpio = <&tlmm_pinmux 132 0x0>;
+			firm-gpio = <&tlmm_pinmux 130 0x0>;
+		};
+	};
+
+	serial@7aef000 {
+		compatible = "qcom,msm-lsuart-v14";
+		reg = <0x7aef000 0x200>;
+		interrupts = <0x0 306 0x0>;
+		status = "ok";
+		clocks = <&clock_gcc clk_gcc_blsp1_uart5_apps_clk>,
+			 <&clock_gcc clk_gcc_blsp1_ahb_clk>;
+		clock-names = "core_clk", "iface_clk";
+		pinctrl-names = "sleep", "default";
+		pinctrl-0 = <&blsp2_uart1_sleep>;
+		pinctrl-1 = <&blsp2_uart1_active>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+		/* vol_up (gpio91) и pinctrl-ссылки остаются из базы — не переопределяем */
+
+		ptt_key {
+			label = "ptt_key";
+			gpios = <&tlmm_pinmux 127 0x1>;
+			linux,input-type = <0x1>;
+			linux,code = <476>;
+			gpio-key,wakeup;
+			debounce-interval = <0xf>;
+		};
+
+		sos_key {
+			label = "sos_key";
+			gpios = <&tlmm_pinmux 128 0x1>;
+			linux,input-type = <0x1>;
+			linux,code = <477>;
+			gpio-key,wakeup;
+			debounce-interval = <0xf>;
+		};
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "goodix_ts";
+		qcom,disp-maxx = <1080>;
+		qcom,disp-maxy = <1920>;
+		qcom,panel-maxx = <1080>;
+		qcom,panel-maxy = <2098>;
+		qcom,key-codes = <139 172 158>;
+		qcom,y-offset = <0x0>;
+	};
+
+	pwv,gpio-interface {
+		compatible = "pwv,gpio-interface";
+
+		rfid-power {
+			pwv,lable = "rfid-power";
+			gpios = <&tlmm_pinmux 59 0x0>;
+		};
+	};
 };
