@@ -294,7 +294,7 @@
 			};
 		};
 
-		mdss_dsi0: qcom,mdss_dsi_ctrl0@1a94000 {
+		mdss_dsi_ctrl0: qcom,mdss_dsi_ctrl0@1a94000 {
 			compatible = "qcom,mdss-dsi-ctrl";
 			label = "MDSS DSI CTRL->0";
 			cell-index = <0>;
