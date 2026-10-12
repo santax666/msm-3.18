@@ -1,0 +1,84 @@
+/* Jason Q787: отличия платы от generic msm8937-pmi8937-qrd-sku2 */
+/ {
+	model = "Qualcomm Technologies, Inc. MSM8937-PMI8937 QRD SKU2 DVT1";
+	qcom,board-id = <0xb 0x0>;
+
+	soc {
+		i2c@78b6000 { /* i2c_2 — тачскрин */
+			goodix@5d {
+				compatible = "goodix,gt1x";
+				reg = <0x5d>;
+				interrupt-parent = <&tlmm_pinmux>;
+				interrupts = <65 0x2008>;
+				goodix,rst-gpio = <&tlmm_pinmux 64 0x0>;
+				goodix,irq-gpio = <&tlmm_pinmux 65 0x2002>;
+				vdd-supply = <&pm8937_l22>;
+				vcc_i2c-supply = <&pm8937_l6>;
+				pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
+				pinctrl-0 = <&ts_int_active &ts_reset_active>;
+				pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+				pinctrl-2 = <&ts_release>;
+				goodix,product-id = "5688";
+				goodix,name = "GT5688";
+				goodix,fw-vkey-support;
+			};
+		};
+
+		gen-vkeys {
+			compatible = "qcom,gen-vkeys";
+			label = "goodix_ts";
+			qcom,disp-maxx = <1080>;
+			qcom,disp-maxy = <1920>;
+			qcom,panel-maxx = <1080>;
+			qcom,panel-maxy = <2098>;
+			qcom,key-codes = <139 158 172>;
+			qcom,y-offset = <0x0>;
+		};
+
+		pwv,gpio-interface {
+			compatible = "pwv,gpio-interface";
+
+			rfid-power {
+				pwv,lable = "rfid-power";
+				gpios = <&tlmm_pinmux 59 0x0>;
+			};
+		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+			input-name = "gpio-keys";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&gpio_key_active>;
+			pinctrl-1 = <&gpio_key_suspend>;
+
+			ptt_key {
+				label = "ptt_key";
+				gpios = <&tlmm_pinmux 127 0x1>;
+				linux,input-type = <1>;
+				linux,code = <476>;
+				gpio-key,wakeup;
+				debounce-interval = <15>;
+			};
+
+			sos_key {
+				label = "sos_key";
+				gpios = <&tlmm_pinmux 128 0x1>;
+				linux,input-type = <1>;
+				linux,code = <477>;
+				gpio-key,wakeup;
+				debounce-interval = <15>;
+			};
+
+			vol_up {
+				label = "volume_up";
+				gpios = <&tlmm_pinmux 91 0x1>;
+				linux,input-type = <1>;
+				linux,code = <115>;
+				gpio-key,wakeup;
+				debounce-interval = <15>;
+			};
+		};
+	};
+
+	/* Узлы pinctrl — в отдельный блок, т.к. в QRD-дереве нет ptt/sos/rfid */
+};
