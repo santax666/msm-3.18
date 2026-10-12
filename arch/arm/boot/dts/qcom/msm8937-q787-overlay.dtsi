@@ -37,7 +37,7 @@
 		};
 	};
 
-	blsp2_uart1_active {
+/*	blsp2_uart1_active {
 		mux {
 			pins = "gpio16", "gpio17";
 			function = "blsp_uart5";
@@ -59,7 +59,7 @@
 			drive-strength = <0x2>;
 			bias-pull-down;
 		};
-	};
+	}; */
 };
 
 /* ============================================================
@@ -110,7 +110,7 @@
 	};
 
 	/* --- UART5 на gpio16/17 (периферийный порт ODM) --- */
-	serial@7aef000 {
+/*	serial@7aef000 {
 		compatible = "qcom,msm-lsuart-v14";
 		reg = <0x7aef000 0x200>;
 		interrupts = <0x0 306 0x0>;
@@ -121,7 +121,7 @@
 		pinctrl-names = "sleep", "default";
 		pinctrl-0 = <&blsp2_uart1_sleep>;
 		pinctrl-1 = <&blsp2_uart1_active>;
-	};
+	}; */
 
 	/* --- Клавиши: ptt/sos (vol_up gpio91 остаётся из базы) --- */
 	gpio_keys {
