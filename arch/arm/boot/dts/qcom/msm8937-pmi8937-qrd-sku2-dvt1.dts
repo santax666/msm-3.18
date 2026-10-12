@@ -21,7 +21,7 @@
 	model = "Qualcomm Technologies, Inc. MSM8937-PMI8937 QRD SKU2 DVT1";
 	compatible = "qcom,msm8937-pmi8937-qrd-sku2",
 		   "qcom,msm8937-qrd", "qcom,msm8937", "qcom,qrd";
-	qcom,board-id= <0x13000b 0>;
+	qcom,board-id = <0xb 0>;
 };
 
 &soc {
