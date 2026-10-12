@@ -1,12 +1,17 @@
 /*
- * Jason Q787: отличия платы от generic msm8937-pmi8937-qrd-sku2
- * Включается после #include "msm8937-pmi8937-qrd-sku2.dtsi"
+ * Jason Q787 (ZXH-Q787): отличия от generic msm8937-pmi8937-qrd-sku2
+ * Подключается в msm8937-pmi8937-qrd-sku2-dvt1.dts ПОСЛЕ базового include:
+ *   #include "msm8937-pmi8937-qrd-sku2.dtsi"
+ *   #include "msm8937-q787-overlay.dtsi"
  */
 
-/* ---------- pinctrl: merge в существующие группы, без новых меток ---------- */
+/* ============================================================
+   1. PINCTRL: клавиши ptt/sos + UART5 (peripheral-порт ODM)
+   Группы тача (pmx_ts_*) и NFC (pmx_rd_nfc_int/pmx_nfc_reset)
+   в базе уже правильные — НЕ дублируем их здесь.
+   ============================================================ */
 &tlmm_pinmux {
 	tlmm_gpio_key {
-		/* в QRD-базе только vol_up (gpio91); добавляем ptt/sos */
 		gpio_key_active {
 			mux {
 				pins = "gpio91", "gpio127", "gpio128";
@@ -14,7 +19,7 @@
 			};
 			config {
 				pins = "gpio91", "gpio127", "gpio128";
-				drive-strength = <2>;
+				drive-strength = <0x2>;
 				bias-pull-up;
 			};
 		};
@@ -26,13 +31,12 @@
 			};
 			config {
 				pins = "gpio91", "gpio127", "gpio128";
-				drive-strength = <2>;
+				drive-strength = <0x2>;
 				bias-pull-up;
 			};
 		};
 	};
 
-	/* UART5 на gpio16/17 — peripheral-порт ODM (в стоке serial@7aef000, status ok) */
 	blsp2_uart1_active {
 		mux {
 			pins = "gpio16", "gpio17";
@@ -40,7 +44,7 @@
 		};
 		config {
 			pins = "gpio16", "gpio17";
-			drive-strength = <2>;
+			drive-strength = <0x2>;
 			bias-disable;
 		};
 	};
@@ -52,19 +56,20 @@
 		};
 		config {
 			pins = "gpio16", "gpio17";
-			drive-strength = <2>;
+			drive-strength = <0x2>;
 			bias-pull-down;
 		};
 	};
-
-	/* pinctrl тача (pmx_ts_*) в базе уже правильный: gpio64 reset / gpio65 irq.
-	   NFC-группы pmx_rd_nfc_int / pmx_nfc_reset в базе тоже есть. Не дублируем. */
 };
 
-/* ---------- устройства ---------- */
+/* ============================================================
+   2. УСТРОЙСТВА
+   ============================================================ */
 &soc {
+
+	/* --- Тачскрин Goodix GT5688 (i2c 3-005d) --- */
 	i2c@78b7000 {
-		/* чужой тач из QRD-базы (ft5436) — убрать, иначе конфликт на шине */
+		/* чужой тач из QRD-базы — убрать, иначе конфликт на шине */
 		/delete-node/ focaltech@38;
 
 		goodix@5d {
@@ -74,8 +79,8 @@
 			interrupts = <65 0x2008>;
 			goodix,rst-gpio = <&tlmm_pinmux 64 0x0>;
 			goodix,irq-gpio = <&tlmm_pinmux 65 0x2002>;
-			vdd-supply = <&PM_TOUCH_VDD>;       /* ← см. примечание про регуляторы */
-			vcc_i2c-supply = <&PM_TOUCH_VCC>;   /* ← см. примечание про регуляторы */
+			vdd-supply = <&pm8937_l10>;
+			vcc_i2c-supply = <&pm8937_l6>;
 			pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
 			pinctrl-0 = <&ts_int_active &ts_reset_active>;
 			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
@@ -86,6 +91,7 @@
 		};
 	};
 
+	/* --- NFC NXP pn548 (i2c 5-0028) --- */
 	i2c@7af5000 {
 		/* если в QRD-базе на этой шине есть свой NFC — раскомментируйте: */
 		/* /delete-node/ nq-nci@28; */
@@ -93,8 +99,8 @@
 		pn548@28 {
 			compatible = "NXP,pn548";
 			reg = <0x28>;
-			vdd-supply = <&PM_TOUCH_VDD>;
-			vcc_i2c-supply = <&PM_TOUCH_VCC>;
+			vdd-supply = <&pm8937_l10>;
+			vcc_i2c-supply = <&pm8937_l6>;
 			interrupt-parent = <&tlmm_pinmux>;
 			interrupts = <126 0x0>;
 			irq-gpio = <&tlmm_pinmux 126 0x0>;
@@ -103,6 +109,7 @@
 		};
 	};
 
+	/* --- UART5 на gpio16/17 (периферийный порт ODM) --- */
 	serial@7aef000 {
 		compatible = "qcom,msm-lsuart-v14";
 		reg = <0x7aef000 0x200>;
@@ -116,10 +123,10 @@
 		pinctrl-1 = <&blsp2_uart1_active>;
 	};
 
+	/* --- Клавиши: ptt/sos (vol_up gpio91 остаётся из базы) --- */
 	gpio_keys {
 		compatible = "gpio-keys";
 		input-name = "gpio-keys";
-		/* vol_up (gpio91) и pinctrl-ссылки остаются из базы — не переопределяем */
 
 		ptt_key {
 			label = "ptt_key";
@@ -140,6 +147,7 @@
 		};
 	};
 
+	/* --- Виртуальные клавиши тача --- */
 	gen-vkeys {
 		compatible = "qcom,gen-vkeys";
 		label = "goodix_ts";
@@ -151,6 +159,7 @@
 		qcom,y-offset = <0x0>;
 	};
 
+	/* --- ODM: GPIO-интерфейс питания RFID --- */
 	pwv,gpio-interface {
 		compatible = "pwv,gpio-interface";
 
@@ -159,4 +168,89 @@
 			gpios = <&tlmm_pinmux 59 0x0>;
 		};
 	};
+
+	/* ============================================================
+	   3. ДИСПЛЕЙ: питание панели + узел jd9366d
+	   ============================================================ */
+	q787_panel_pwr: dsi_panel_pwr_supply {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0x0>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <0x2b7cd0>;   /* 2,85 В */
+			qcom,supply-max-voltage = <0x2b7cd0>;
+			qcom,supply-enable-load = <0x186a0>;
+			qcom,supply-disable-load = <0x64>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <0x1>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <0x1b7740>;   /* 1,8 В */
+			qcom,supply-max-voltage = <0x1b7740>;
+			qcom,supply-enable-load = <0x186a0>;
+			qcom,supply-disable-load = <0x64>;
+		};
+	};
+
+	jd9366d_vid: qcom,mdss_dsi_jd9366d_720p_video {
+		qcom,mdss-dsi-panel-name = "jd9366d 720p video mode dsi panel";
+		qcom,mdss-dsi-panel-controller = <&mdss_dsi_ctrl0>;
+		qcom,mdss-dsi-panel-type = "dsi_video_mode";
+		qcom,mdss-dsi-panel-destination = "display_1";
+		qcom,mdss-dsi-panel-framerate = <0x3c>;
+		qcom,mdss-dsi-virtual-channel-id = <0x0>;
+		qcom,mdss-dsi-stream = <0x0>;
+		qcom,mdss-dsi-panel-width = <0x2d0>;    /* 720 */
+		qcom,mdss-dsi-panel-height = <0x5a0>;   /* 1440 */
+		qcom,mdss-dsi-h-front-porch = <0x1a>;
+		qcom,mdss-dsi-h-back-porch = <0x1a>;
+		qcom,mdss-dsi-h-pulse-width = <0x8>;
+		qcom,mdss-dsi-h-sync-skew = <0x0>;
+		qcom,mdss-dsi-v-back-porch = <0x8>;
+		qcom,mdss-dsi-v-front-porch = <0x24>;
+		qcom,mdss-dsi-v-pulse-width = <0x4>;
+		qcom,mdss-dsi-h-left-border = <0x0>;
+		qcom,mdss-dsi-h-right-border = <0x0>;
+		qcom,mdss-dsi-v-top-border = <0x0>;
+		qcom,mdss-dsi-v-bottom-border = <0x0>;
+		qcom,mdss-dsi-bpp = <0x18>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-border-color = <0x0>;
+
+		qcom,mdss-dsi-on-command = [29 01 00 00 00 00 02 e0 00 29 01 00 00 00 00 02 e1 93 29 01 00 00 00 00 02 e2 66 29 01 00 00 00 00 02 e3 f9 29 01 00 00 00 00 02 80 03 29 01 00 00 00 00 02 e0 01 29 01 00 00 00 00 02 00 01 29 01 00 00 00 00 02 01 25 29 01 00 00 00 00 02 03 01 29 01 00 00 00 00 02 04 24 29 01 00 00 00 00 02 0a 08 29 01 00 00 00 00 02 13 00 29 01 00 00 00 00 02 14 99 29 01 00 00 00 00 02 17 00 29 01 00 00 00 00 02 18 a4 29 01 00 00 00 00 02 19 00 29 01 00 00 00 00 02 1a 00 29 01 00 00 00 00 02 1b a4 29 01 00 00 00 00 02 1c 00 29 01 00 00 00 00 02 1f 32 29 01 00 00 00 00 02 20 2f 29 01 00 00 00 00 02 21 19 29 01 00 00 00 00 02 22 0d 29 01 00 00 00 00 02 23 02 29 01 00 00 00 00 02 24 fe 29 01 00 00 00 00 02 26 dd 29 01 00 00 00 00 02 35 13 29 01 00 00 00 00 02 37 09 29 01 00 00 00 00 02 38 04 29 01 00 00 00 00 02 39 01 29 01 00 00 00 00 02 3a 03 29 01 00 00 00 00 02 3c 60 29 01 00 00 00 00 02 3d 18 29 01 00 00 00 00 02 3e 80 29 01 00 00 00 00 02 3f 4e 29 01 00 00 00 00 02 3d ff 29 01 00 00 00 00 02 3e ff 29 01 00 00 00 00 02 3f ff 29 01 00 00 00 00 02 4b 04 29 01 00 00 00 00 02 40 04 29 01 00 00 00 00 02 41 b4 29 01 00 00 00 00 02 42 70 29 01 00 00 00 00 02 43 24 29 01 00 00 00 00 02 44 0c 29 01 00 00 00 00 02 45 64 29 01 00 00 00 00 02 55 01 29 01 00 00 00 00 02 56 01 29 01 00 00 00 00 02 57 6d 29 01 00 00 00 00 02 58 0a 29 01 00 00 00 00 02 59 8a 29 01 00 00 00 00 02 5a 28 29 01 00 00 00 00 02 5b 23 29 01 00 00 00 00 02 5c 15 29 01 00 00 00 00 02 5d 75 29 01 00 00 00 00 02 5e 5b 29 01 00 00 00 00 02 5f 4b 29 01 00 00 00 00 02 60 3f 29 01 00 00 00 00 02 61 3c 29 01 00 00 00 00 02 62 2d 29 01 00 00 00 00 02 63 33 29 01 00 00 00 00 02 64 1d 29 01 00 00 00 00 02 65 37 29 01 00 00 00 00 02 66 37 29 01 00 00 00 00 02 67 39 29 01 00 00 00 00 02 68 59 29 01 00 00 00 00 02 69 4a 29 01 00 00 00 00 02 6a 54 29 01 00 00 00 00 02 6b 47 29 01 00 00 00 00 02 6c 44 29 01 00 00 00 00 02 6d 37 29 01 00 00 00 00 02 6e 27 29 01 00 00 00 00 02 6f 1a 29 01 00 00 00 00 02 70 75 29 01 00 00 00 00 02 71 5b 29 01 00 00 00 00 02 72 4b 29 01 00 00 00 00 02 73 3f 29 01 00 00 00 00 02 74 3c 29 01 00 00 00 00 02 75 2d 29 01 00 00 00 00 02 76 33 29 01 00 00 00 00 02 77 1d 29 01 00 00 00 00 02 78 37 29 01 00 00 00 00 02 79 37 29 01 00 00 00 00 02 7a 39 29 01 00 00 00 00 02 7b 59 29 01 00 00 00 00 02 7c 4a 29 01 00 00 00 00 02 7d 54 29 01 00 00 00 00 02 7e 47 29 01 00 00 00 00 02 7f 44 29 01 00 00 00 00 02 80 37 29 01 00 00 00 00 02 81 27 29 01 00 00 00 00 02 82 1a 29 01 00 00 00 00 02 e0 02 29 01 00 00 00 00 02 00 5d 29 01 00 00 00 00 02 01 51 29 01 00 00 00 00 02 02 5d 29 01 00 00 00 00 02 03 5d 29 01 00 00 00 00 02 04 5e 29 01 00 00 00 00 02 05 5f 29 01 00 00 00 00 02 06 51 29 01 00 00 00 00 02 07 41 29 01 00 00 00 00 02 08 45 29 01 00 00 00 00 02 09 5d 29 01 00 00 00 00 02 0a 5d 29 01 00 00 00 00 02 0b 4b 29 01 00 00 00 00 02 0c 49 29 01 00 00 00 00 02 0d 5d 29 01 00 00 00 00 02 0e 5d 29 01 00 00 00 00 02 0f 47 29 01 00 00 00 00 02 10 5f 29 01 00 00 00 00 02 11 5d 29 01 00 00 00 00 02 12 5d 29 01 00 00 00 00 02 13 5d 29 01 00 00 00 00 02 14 5d 29 01 00 00 00 00 02 15 5d 29 01 00 00 00 00 02 16 5d 29 01 00 00 00 00 02 17 50 29 01 00 00 00 00 02 18 5d 29 01 00 00 00 00 02 19 5d 29 01 00 00 00 00 02 1a 5e 29 01 00 00 00 00 02 1b 5f 29 01 00 00 00 00 02 1c 50 29 01 00 00 00 00 02 1d 40 29 01 00 00 00 00 02 1e 44 29 01 00 00 00 00 02 1f 5d 29 01 00 00 00 00 02 20 5d 29 01 00 00 00 00 02 21 4a 29 01 00 00 00 00 02 22 48 29 01 00 00 00 00 02 23 5d 29 01 00 00 00 00 02 24 5d 29 01 00 00 00 00 02 25 46 29 01 00 00 00 00 02 26 5f 29 01 00 00 00 00 02 27 5d 29 01 00 00 00 00 02 28 5d 29 01 00 00 00 00 02 29 5d 29 01 00 00 00 00 02 2a 5d 29 01 00 00 00 00 02 2b 5d 29 01 00 00 00 00 02 2c 1d 29 01 00 00 00 00 02 2d 10 29 01 00 00 00 00 02 2e 1d 29 01 00 00 00 00 02 2f 1d 29 01 00 00 00 00 02 30 1f 29 01 00 00 00 00 02 31 1e 29 01 00 00 00 00 02 32 00 29 01 00 00 00 00 02 33 10 29 01 00 00 00 00 02 34 06 29 01 00 00 00 00 02 35 1d 29 01 00 00 00 00 02 36 1d 29 01 00 00 00 00 02 37 08 29 01 00 00 00 00 02 38 0a 29 01 00 00 00 00 02 39 1d 29 01 00 00 00 00 02 3a 1d 29 01 00 00 00 00 02 3b 04 29 01 00 00 00 00 02 3c 1f 29 01 00 00 00 00 02 3d 1d 29 01 00 00 00 00 02 3e 1d 29 01 00 00 00 00 02 3f 1d 29 01 00 00 00 00 02 40 1d 29 01 00 00 00 00 02 41 1d 29 01 00 00 00 00 02 42 1d 29 01 00 00 00 00 02 43 11 29 01 00 00 00 00 02 44 1d 29 01 00 00 00 00 02 45 1d 29 01 00 00 00 00 02 46 1f 29 01 00 00 00 00 02 47 1e 29 01 00 00 00 00 02 48 01 29 01 00 00 00 00 02 49 11 29 01 00 00 00 00 02 4a 07 29 01 00 00 00 00 02 4b 1d 29 01 00 00 00 00 02 4c 1d 29 01 00 00 00 00 02 4d 09 29 01 00 00 00 00 02 4e 0b 29 01 00 00 00 00 02 4f 1d 29 01 00 00 00 00 02 50 1d 29 01 00 00 00 00 02 51 05 29 01 00 00 00 00 02 52 1f 29 01 00 00 00 00 02 53 1d 29 01 00 00 00 00 02 54 1d 29 01 00 00 00 00 02 55 1d 29 01 00 00 00 00 02 56 1d 29 01 00 00 00 00 02 57 1d 29 01 00 00 00 00 02 58 41 29 01 00 00 00 00 02 59 00 29 01 00 00 00 00 02 5a 00 29 01 00 00 00 00 02 5b 10 29 01 00 00 00 00 02 5c 02 29 01 00 00 00 00 02 5d 60 29 01 00 00 00 00 02 5e 01 29 01 00 00 00 00 02 5f 02 29 01 00 00 00 00 02 60 40 29 01 00 00 00 00 02 61 03 29 01 00 00 00 00 02 62 04 29 01 00 00 00 00 02 63 14 29 01 00 00 00 00 02 64 1a 29 01 00 00 00 00 02 65 55 29 01 00 00 00 00 02 66 b1 29 01 00 00 00 00 02 67 73 29 01 00 00 00 00 02 68 04 29 01 00 00 00 00 02 69 16 29 01 00 00 00 00 02 6a 58 29 01 00 00 00 00 02 6b 0a 29 01 00 00 00 00 02 6c 00 29 01 00 00 00 00 02 6d 00 29 01 00 00 00 00 02 6e 00 29 01 00 00 00 00 02 6f 88 29 01 00 00 00 00 02 70 00 29 01 00 00 00 00 02 71 00 29 01 00 00 00 00 02 72 06 29 01 00 00 00 00 02 73 7b 29 01 00 00 00 00 02 74 00 29 01 00 00 00 00 02 75 bc 29 01 00 00 00 00 02 76 00 29 01 00 00 00 00 02 77 05 29 01 00 00 00 00 02 78 34 29 01 00 00 00 00 02 79 00 29 01 00 00 00 00 02 7a 00 29 01 00 00 00 00 02 7b 00 29 01 00 00 00 00 02 7c 00 29 01 00 00 00 00 02 7d 03 29 01 00 00 00 00 02 7e 7b 29 01 00 00 00 00 02 80 06 29 01 00 00 00 00 02 e0 04 29 01 00 00 00 00 02 00 02 29 01 00 00 00 00 02 02 23 29 01 00 00 00 00 02 03 8f 29 01 00 00 00 00 02 09 11 29 01 00 00 00 00 02 0e 2a 29 01 00 00 00 00 02 9a 01 29 01 00 00 00 00 02 9b 05 29 01 00 00 00 00 02 a9 01 29 01 00 00 00 00 02 aa 68 29 01 00 00 00 00 02 ac 19 29 01 00 00 00 00 02 ad 0f 29 01 00 00 00 00 02 ae 0f 29 01 00 00 00 00 02 e0 00 29 01 00 00 00 00 02 e6 02 29 01 00 00 00 00 02 e7 06 29 01 00 00 00 00 02 e0 00 29 01 00 00 00 00 01 11 29 01 00 00 00 00 01 29 29 01 00 00 00 00 02 35 00];
+		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
+					     05 01 00 00 78 00 02 10 00];
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-h-sync-pulse = <0x1>;
+		qcom,mdss-dsi-traffic-mode = "burst_mode";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-lane-2-state;
+		qcom,mdss-dsi-lane-3-state;
+		qcom,mdss-dsi-panel-timings = <0x7b1a1000 0x3e40161e 0x15030400>;
+		qcom,mdss-dsi-t-clk-post = <0x4>;
+		qcom,mdss-dsi-t-clk-pre = <0x1a>;
+		qcom,mdss-dsi-force-clock-lane-hs;
+		qcom,mdss-dsi-bl-min-level = <0x1>;
+		qcom,mdss-dsi-bl-max-level = <0xfff>;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+		qcom,mdss-dsi-reset-sequence = <0x1 0x0 0x1 0x5 0xa 0x78>;
+		qcom,cont-splash-enabled;
+		qcom,panel-supply-entries = <&q787_panel_pwr>;
+	};
+};
+
+/* Выбор основной панели */
+&mdss_dsi_ctrl0 {
+	qcom,dsi-pref-prim-pan = <&jd9366d_vid>;
 };
