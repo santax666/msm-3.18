@@ -1113,6 +1113,13 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_fw_update.
 
+config TOUCHSCREEN_GT1X
+	tristate "GT1X touchscreens support"
+	depends on I2C
+
+source "drivers/input/touchscreen/Goodix_gt5688/Kconfig"
+
+
 config TOUCHSCREEN_GT9XX
 	bool "Goodix touchpanel GT9xx series"
 	depends on I2C
