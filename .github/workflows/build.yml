@@ -25,6 +25,9 @@ jobs:
           make O=out HOSTCC=gcc-9 CC="$HOME/gcc64/bin/aarch64-linux-android-gcc" olddefconfig
           make O=out HOSTCC=gcc-9 CC="$HOME/gcc64/bin/aarch64-linux-android-gcc" -j$(nproc)
           grep -m1 -a "Linux version" out/include/generated/utsrelease.h || true
+      - name: decompile dtb
+        run: |
+          dtc -I dtb -O dts -o out/built-sku2.dts out/arch/arm64/boot/dts/qcom/msm8937-pmi8937-qrd-sku2.dtb
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -32,5 +35,6 @@ jobs:
           path: |
             build.log
             out/.config
+            out/built-sku2.dts
             out/arch/arm64/boot/Image*
             out/arch/arm64/boot/dts/qcom/*8937*.dtb
