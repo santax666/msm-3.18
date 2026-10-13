@@ -175,6 +175,7 @@ dtb-$(CONFIG_ARCH_SDX20) += sdx20-emmc-cdp.dtb \
 
 dtb-$(CONFIG_ARCH_MSM8937) += msm8937-rumi.dtb \
 	msm8937-pmi8950-cdp.dtb \
+	msm8937-jason-q787.dtb \
 	msm8937-pmi8937-cdp.dtb \
 	msm8937-pmi8940-cdp.dtb \
 	msm8937-pmi8950-ext-codec-cdp.dtb \
