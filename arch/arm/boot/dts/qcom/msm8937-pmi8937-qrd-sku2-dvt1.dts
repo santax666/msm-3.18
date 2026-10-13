@@ -15,6 +15,7 @@
 
 #include "msm8937.dtsi"
 #include "msm8937-pmi8937-qrd-sku2.dtsi"
+#include "dsi-panel-jd9366d-720p-video.dtsi"
 
 
 / {
