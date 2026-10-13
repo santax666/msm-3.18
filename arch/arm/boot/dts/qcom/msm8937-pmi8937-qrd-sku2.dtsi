@@ -47,46 +47,42 @@
 
 	i2c@78b7000 {
 		status = "ok";
-		focaltech@38 {
-			compatible = "focaltech,5x06";
-			reg = <0x38>;
+		goodix@5d {
+			compatible = "goodix,gt1x";
+			reg = <0x5d>;
 			interrupt-parent = <&tlmm>;
-			interrupts = <65 0x2>;
+			interrupts = <65 0x2008>;
+			goodix,rst-gpio = <&tlmm 64 0x0>;
+			goodix,irq-gpio = <&tlmm 65 0x2002>;
 			vdd-supply = <&pm8937_l10>;
-			vcc_i2c-supply = <&pm8937_l5>;
-			/* pins used by touchscreen */
-			pinctrl-names = "pmx_ts_active",
-						"pmx_ts_suspend",
-						"pmx_ts_release";
+			vcc_i2c-supply = <&pm8937_l6>;
+			pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
 			pinctrl-0 = <&ts_int_active &ts_reset_active>;
 			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 			pinctrl-2 = <&ts_release>;
-			focaltech,name = "ft5436";
-			focaltech,family-id = <0x06>;
-			focaltech,reset-gpio = <&tlmm 64 0x0>;
-			focaltech,irq-gpio = <&tlmm 65 0x2008>;
-			focaltech,display-coords = <0 0 720 1280>;
-			focaltech,panel-coords = <0 0 720 1400>;
-			focaltech,button-map= <139 102 158>;
-			focaltech,no-force-update;
-			focaltech,i2c-pull-up;
-			focaltech,group-id = <1>;
-			focaltech,hard-reset-delay-ms = <20>;
-			focaltech,soft-reset-delay-ms = <200>;
-			focaltech,num-max-touches = <5>;
-			focaltech,fw-delay-aa-ms = <30>;
-			focaltech,fw-delay-55-ms = <30>;
-			focaltech,fw-upgrade-id1 = <0x79>;
-			focaltech,fw-upgrade-id2 = <0x08>;
-			focaltech,fw-delay-readid-ms = <10>;
-			focaltech,fw-delay-era-flsh-ms = <2000>;
-			focaltech,fw-auto-cal;
-			focaltech,ignore-id-check;
-			/* Underlying clocks used by secure touch */
-			clock-names = "iface_clk", "core_clk";
-			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-				<&clock_gcc clk_gcc_blsp1_qup3_i2c_apps_clk>;
+			goodix,product-id = "5688";
+			goodix,name = "GT5688";
+			goodix,fw-vkey-support;
+			/* SensorID 1 config (CFG_GROUP1), 239 bytes, 720x1440 */
+			goodix,default-config1 = [
+				80 d0 02 a0 05 25 35 00 10 00 00 0f 78 50 53 11
+				01 01 00 00 14 17 19 1d 0a 04 70 00 0a 05 00 58
+				53 00 14 00 00 84 00 00 3c 00 00 64 1e 1e 8b 0b
+				0d 28 2a 0c 08 60 3b 62 ba 02 24 00 00 50 8c c0
+				14 02 02 00 00 a2 5a 94 64 89 6e 80 78 78 82 72
+				00 00 00 00 00 00 00 f0 50 3c aa aa 07 00 00 00
+				00 14 14 03 04 00 21 64 0a 00 00 00 00 00 00 00
+				00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+				df 07 32 20 50 3c 3c 00 00 00 00 00 0d 06 0c 05
+				0b 04 0a 03 09 02 08 01 07 ff 0b 0c 0d 0e 0f 10
+				11 12 13 14 15 0a 09 08 07 06 05 04 03 02 01 00
+				ff ff ff ff 00 00 00 00 00 00 00 00 00 00 00 00
+				00 50 3c 00 05 1e 00 03 1c 1e 19 14 02 00 03 0a
+				05 32 64 00 00 00 00 00 01 ff ff 84 22 03 df 07
+				3b f0 0a 1e 00 78 50 3c 20 00 00 05 ff ba 01
+			];
 		};
+
 	};
 
 	gen-vkeys {
