@@ -1,0 +1,65 @@
+diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
+index 0000000..1111111 100644
+--- a/arch/arm64/kernel/traps.c
++++ b/arch/arm64/kernel/traps.c
+@@ -160,6 +160,17 @@ static void cntfrq_read_handler(unsigned int esr, struct pt_regs *regs)
+ 	regs->pc += 4;
+ }
+ 
++static void cntpct_read_handler(unsigned int esr, struct pt_regs *regs)
++{
++	int rt = (esr & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT;
++
++	isb();
++	if (rt != 31)
++		regs->regs[rt] = arch_counter_get_cntpct();
++	regs->pc += 4;
++}
++
++#define ESR_ELx_SYS64_ISS_SYS_CNTPCT (ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 1, 14, 0) | \
++				      ESR_ELx_SYS64_ISS_DIR_READ)
++
+ asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
+ {
+ 	if ((esr & ESR_ELx_SYS64_ISS_SYS_OP_MASK) == ESR_ELx_SYS64_ISS_SYS_CNTVCT) {
+@@ -170,6 +181,9 @@ asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
+ 	} else if ((esr & ESR_ELx_SYS64_ISS_SYS_OP_MASK) == ESR_ELx_SYS64_ISS_SYS_CNTFRQ) {
+ 		cntfrq_read_handler(esr, regs);
+ 		return;
++	} else if ((esr & ESR_ELx_SYS64_ISS_SYS_OP_MASK) == ESR_ELx_SYS64_ISS_SYS_CNTPCT) {
++		cntpct_read_handler(esr, regs);
++		return;
+ 	}
+ 	do_undefinstr(regs);
+ }
+diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
+index 2222222..3333333 100644
+--- a/drivers/clocksource/arm_arch_timer.c
++++ b/drivers/clocksource/arm_arch_timer.c
+@@ -45,6 +45,16 @@ u64 arch_counter_get_cntvct_mem(void)
+ 	return __arch_counter_get_cntvct();
+ }
+ 
++u64 arch_counter_get_cntpct(void)
++{
++	if (arch_timer_read_counter == arch_counter_get_cntvct_cp15)
++		return arch_counter_get_cntpct_cp15();
++	else
++		return arch_counter_get_cntpct_mem();
++}
++EXPORT_SYMBOL_GPL(arch_counter_get_cntpct);
++
+ static u64 arch_counter_get_cntvct_cp15(void)
+ {
+ 	u64 cval, cnt;
+diff --git a/include/clocksource/arm_arch_timer.h b/include/clocksource/arm_arch_timer.h
+index 4444444..5555555 100644
+--- a/include/clocksource/arm_arch_timer.h
++++ b/include/clocksource/arm_arch_timer.h
+@@ -45,6 +45,7 @@ extern struct timecounter *arch_timer_get_timecounter(void);
+ extern u64 arch_counter_get_cntvct(void);
+ extern u64 arch_counter_get_cntvct_mem(void);
+ extern u64 arch_counter_get_cntpct(void);
++extern u64 arch_counter_get_cntpct_mem(void);
+ 
+ #endif
